@@ -408,7 +408,8 @@ class NetworkApiServices extends BaseApiServices {
       final response = await http
           .put(Uri.parse(url), body: data)
           .timeout(const Duration(seconds: 60));
-      responseJson = returnResponce(response);
+      // responseJson = returnResponce(response);
+      responseJson = response;
     } on SocketException {
       Utils.toastMessageTop('Please Check Your Internet');
       throw InternetException();
@@ -422,6 +423,7 @@ class NetworkApiServices extends BaseApiServices {
     if (kDebugMode) {
       print(responseJson);
     }
+
     return responseJson;
   }
 
@@ -473,7 +475,7 @@ class NetworkApiServices extends BaseApiServices {
 
       case 400:
         dynamic responseJson = jsonDecode(response.body);
-        debugPrint("Server Responce 400 :- ${responseJson.toString()}");
+        debugPrint("Server Response 400 :- ${responseJson.toString()}");
 
         return responseJson;
 

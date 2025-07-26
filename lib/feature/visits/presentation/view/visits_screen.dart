@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mr_reporting/feature/add_new_visit/presentation/view/add_new_visit_screen.dart';
+import 'package:mr_reporting/core/response/status.dart';
+import 'package:mr_reporting/feature/home/presentation/controller/home_controller.dart';
 import 'package:mr_reporting/feature/particular_visit/presentation/view/particular_visit_screen.dart';
-import 'package:mr_reporting/feature/visits//presentation/controller/visits_controller.dart';
 import 'package:mr_reporting/res/color/app_color.dart';
-import 'package:mr_reporting/res/common/common_text_button.dart';
 import 'package:mr_reporting/res/constant/constant_data.dart';
 
 class VisitsScreen extends StatefulWidget {
@@ -16,7 +15,14 @@ class VisitsScreen extends StatefulWidget {
 
 class _VisitsScreenState extends State<VisitsScreen> {
 
-  final visitsVM = Get.put(VisitsController());
+  final visitsVM = Get.put(HomeController());
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    visitsVM.visitList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,39 +43,87 @@ class _VisitsScreenState extends State<VisitsScreen> {
               children: [
                 SizedBox(height: Constant.height * .155),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    CommonTextButton(
-                      onTap: () {
-                        Get.to(() => const AddNewVisitScreen());
-                      },
-                      text: 'Add New Visit',
-                      style: TextStyle(color: AppColors.gradient2, fontSize: Constant.width * .04, decoration: TextDecoration.underline, decorationColor: AppColors.gradient2),
-                    ),
-                  ],
-                ),
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.end,
+                //   children: [
+                //     CommonTextButton(
+                //       onTap: () {
+                //         Get.to(() => const AddNewVisitScreen());
+                //       },
+                //       text: 'Add New Visit',
+                //       style: TextStyle(color: AppColors.gradient2, fontSize: Constant.width * .04, decoration: TextDecoration.underline, decorationColor: AppColors.gradient2),
+                //     ),
+                //   ],
+                // ),
 
-                /// Today Visit List
+                /// Visit List
                 Obx(() {
-                  return SizedBox(
-                    height: Constant.height * .79,
-                    width: Constant.width * 1,
-                    child: ListView.builder(
-                      itemCount: visitsVM.visits.length,
-                      padding: EdgeInsets.zero,
-                      itemBuilder: (context, index) {
-                        var data = visitsVM.visits[index];
-                        return visitCard(data['name'].toString(), data['date'], data['time'], Icons.local_hospital, () {
-                          Get.to(() => ParticularVisitScreen(drName: data['name'].toString(), status: 'Completed',));
-                        },);
-                      },
-                    ),
-                  );
+                  switch(visitsVM.rxRequestStatusVisitList.value){
+                    case Status.LOADING:
+                      return SizedBox(
+                        height: Constant.height * .79,
+                        width: Constant.width * 1,
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+
+                    case Status.ERROR:
+                      return SizedBox(
+                        height: Constant.height * .79,
+                        width: Constant.width * 1,
+                        child: Center(
+                          child: Text(
+                            'Something Went Wrong',
+                            style: TextStyle(fontSize: Constant.width * .06),
+                          ),
+                        ),
+                      );
+
+                    case Status.COMPLETED:
+                      if (visitsVM.rxVisitListModel.value == null) {
+                        return SizedBox(
+                          height: Constant.height * .79,
+                          width: Constant.width * 1,
+                          child: Center(
+                            child: Text(
+                              'No Data Available',
+                              style: TextStyle(fontSize: Constant.width * .06),
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (visitsVM.rxVisitListModel.value!.assignments.isEmpty) {
+                        return SizedBox(
+                          height: Constant.height * .79,
+                          width: Constant.width * 1,
+                          child: Center(
+                            child: Text(
+                              'No Visit Available',
+                              style: TextStyle(fontSize: Constant.width * .06),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return SizedBox(
+                        height: Constant.height * .79,
+                        width: Constant.width * 1,
+                        child: ListView.builder(
+                          itemCount: visitsVM.rxVisitListModel.value!.assignments.length,
+                          padding: EdgeInsets.zero,
+                          itemBuilder: (context, index) {
+                            var data = visitsVM.rxVisitListModel.value!.assignments[index];
+                            return visitCard(data.doctorName, data.status, data.startDatetime, data.endDatetime, Icons.local_hospital, () {
+                              Get.to(() => ParticularVisitScreen(assignmentId: data.assignmentId));
+                            },);
+                          },
+                        ),
+                      );
+                  }
+
                 },),
-
-
-
               ],
             ),
           ),
@@ -85,8 +139,8 @@ class _VisitsScreenState extends State<VisitsScreen> {
             decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.gradient1,
-                    AppColors.gradient2
+                    AppColors.gradient2,
+                    AppColors.gradient1
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -96,7 +150,7 @@ class _VisitsScreenState extends State<VisitsScreen> {
                   bottomRight: Radius.circular(Constant.width * .1),
                 )
             ),
-            child: Text('Visit', style: TextStyle(fontSize: Constant.width * .06, fontWeight: FontWeight.bold, color: AppColors.black)),
+            child: Text('Visit', style: TextStyle(fontSize: Constant.width * .05, fontWeight: FontWeight.bold, color: AppColors.black)),
           )
 
         ],
@@ -104,133 +158,82 @@ class _VisitsScreenState extends State<VisitsScreen> {
     );
   }
 
-  /// Status Card
-  Widget statusCard(String title, int count, IconData icon, Color color, Color lightColor){
-    return Container(
-      height: Constant.height * .15,
-      width: Constant.width * .45,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(Constant.width * .04),
-      ),
-      child: Container(
-        height: Constant.height * .15,
-        width: Constant.width * .45,
-        margin: EdgeInsets.only(
-          left: Constant.width * .02,
-        ),
-        padding: EdgeInsets.only(
-            left: Constant.width * .03,
-            right: Constant.width * .03,
-            top: Constant.height * .02,
-            bottom: Constant.height * .02
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(Constant.width * .04),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// Title
-            Text(title, style: TextStyle(fontSize: Constant.width * .045, fontWeight: FontWeight.bold, color: AppColors.black), maxLines: 1),
 
-            /// Quantity and Icon
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                /// Quantity
-                Text(count.toString(), style: TextStyle(fontSize: Constant.width * .06, fontWeight: FontWeight.bold, color: color)),
+  /// VisitCard
+  Widget visitCard(String name, status, startDateTime, endDateTime, IconData icon, VoidCallback method){
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: method,
+        child: Container(
+          height: Constant.height * .12,
+          width: Constant.width * 1,
+          margin: EdgeInsets.only(
+            bottom: Constant.height * .01
+          ),
+          padding: EdgeInsets.only(
+              left: Constant.width * .03,
+              right: Constant.width * .03,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(Constant.width * .03),
+            border: Border.all(
+              color: AppColors.gradient2
+            )
+          ),
+          child: Row(
+            children: [
+              /// Icon
+              Container(
+                height: Constant.height * .09,
+                width: Constant.width * .2,
+                decoration: BoxDecoration(
+                  color: AppColors.gradient1,
+                  borderRadius: BorderRadius.circular(Constant.width * .03)
+                ),
+                child: Center(
+                  child: Icon(icon, size: Constant.width * .15, color: AppColors.gradient2),
+                ),
+              ),
 
-                /// Icon ---> Container
-                Container(
-                  height: Constant.height * .07,
-                  width: Constant.width * .14,
-                  decoration: BoxDecoration(
-                      color: lightColor,
-                      borderRadius: BorderRadius.circular(Constant.width * .03)
-                  ),
-                  child: Center(
-                    child: Icon(icon, size: Constant.width * .08, color: color),
-                  ),
-                )
-              ],
-            ),
-          ],
+              SizedBox(width: Constant.width * .02),
+
+              /// Name and Date
+              SizedBox(
+                height: Constant.height * .1,
+                width: Constant.width * .65,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Text(name, style: TextStyle(fontSize: Constant.width * .05, fontWeight: FontWeight.bold, color: AppColors.black), maxLines: 1),
+                    titleValue('Start', extractDate(startDateTime)),
+                    titleValue('End', extractDate(endDateTime)),
+                    // titleValue('Status', status),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// VisitCard
-  Widget visitCard(String name, date, time, IconData icon, VoidCallback method){
-    return InkWell(
-      onTap: method,
-      child: Container(
-        height: Constant.height * .12,
-        width: Constant.width * 1,
-        margin: EdgeInsets.only(
-          bottom: Constant.height * .01
-        ),
-        padding: EdgeInsets.only(
-            left: Constant.width * .03,
-            right: Constant.width * .03,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(Constant.width * .03),
-          border: Border.all(
-            color: AppColors.gradient2
-          )
-        ),
-        child: Row(
-          children: [
-            /// Icon
-            Container(
-              height: Constant.height * .09,
-              width: Constant.width * .2,
-              decoration: BoxDecoration(
-                color: AppColors.gradient1,
-                borderRadius: BorderRadius.circular(Constant.width * .03)
-              ),
-              child: Center(
-                child: Icon(icon, size: Constant.width * .15, color: AppColors.gradient2),
-              ),
-            ),
+  String extractDate(String isoDateTime) {
+    DateTime dateTime = DateTime.parse(isoDateTime);
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
 
-            SizedBox(width: Constant.width * .02),
 
-            /// Name and Date
-            SizedBox(
-              height: Constant.height * .09,
-              width: Constant.width * .38,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text(name, style: TextStyle(fontSize: Constant.width * .05, fontWeight: FontWeight.bold, color: AppColors.black), maxLines: 1),
-                  Text(date, style: TextStyle(fontSize: Constant.width * .04, color: AppColors.greyTextLightColor), maxLines: 1),
-                ],
-              ),
-            ),
 
-            /// Time Container
-            SizedBox(
-              height: Constant.height * .09,
-              width: Constant.width * .27,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text(time, style: TextStyle(fontSize: Constant.width * .05, fontWeight: FontWeight.bold, color: AppColors.black), maxLines: 1),
-                  Text('Total Duration', style: TextStyle(fontSize: Constant.width * .04, color: AppColors.greyTextLightColor), maxLines: 1),
-                ],
-              ),
-            )
-          ],
-        ),
-      ),
+  Widget titleValue(String title, value){
+    return Row(
+      children: [
+        Text('$title : ', style: TextStyle(fontSize: Constant.width * .04, color: AppColors.greyTextDarkColor, fontWeight: FontWeight.bold), maxLines: 1),
+        Text(value, style: TextStyle(fontSize: Constant.width * .04, color: AppColors.greyTextLightColor), maxLines: 1),
+      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:mr_reporting/feature/authentication/login/data/model/login_model.dart';
 import 'package:mr_reporting/feature/authentication/login/data/repository/login_repository.dart';
 import 'package:mr_reporting/feature/dashboard/presentation/view/dashboard_screen.dart';
@@ -28,26 +29,41 @@ class LoginController extends GetxController {
     loading.value = true;
 
     Map<String, dynamic> data = {
-      'email': emailController.value.text,
-      'password': passwordController.value.text
+      'username': emailController.value.text,
+      'password': passwordController.value.text,
+      'role': 'MR'
     };
 
     _api.loginApi(data).then((response) {
 
       loading.value = false;
 
+      if (kDebugMode) {
+        print(response);
+      }
+
       try{
 
-        if(response['body-json']['statusCode'] == 200){
-
-          LoginModel loginModel = LoginModel.fromJson(response['body-json']);
+        if(response['token'] != null && response['token'].toString().isNotEmpty){
+          LoginModel loginModel = LoginModel.fromJson(response);
           setRxLoginModel(loginModel);
 
-          String token = response['body-json']['body']['token'];
+          String token = response['token'];
+
+          Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+
+          String role = decodedToken['role'];
+          String mrId = decodedToken['mr_id'];
 
           userPreferences.setEmail(emailController.value.text).then((value) {
             if(kDebugMode){
               print('email saved successfully');
+            }
+          });
+
+          userPreferences.setUserId(mrId).then((value) {
+            if(kDebugMode){
+              print('Mr Id saved successfully');
             }
           });
 
@@ -67,12 +83,8 @@ class LoginController extends GetxController {
           });
 
 
-        }else if(response['body-json']['statusCode'] == 401 || response['body-json']['statusCode'] == 400){
-          Utils.toastMessageTop(response['body-json']['body']['message']);
-        }else{
-          if(kDebugMode){
-            print(response.toString());
-          }
+        }else {
+          Utils.toastMessageTop(response['message']);
         }
 
       }catch(e){

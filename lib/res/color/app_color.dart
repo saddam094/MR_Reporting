@@ -18,6 +18,7 @@ class AppColors {
 
   /// Card Color
   static const Color cardBg = Color(0xffD1D8C5);
+  static const Color cardBg1 = Color(0xffF6FAFD);
   static const Color pageBG = Color(0xffF2F2F3);
 
 
